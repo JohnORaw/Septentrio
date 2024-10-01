@@ -1,21 +1,8 @@
 import serial
 import struct
+import septentrio_constants
 
-# Constants
-SBF_SYNC_PATTERN = b'\x24\x40'  # The sync word for Septentrio SBF messages (0x24 0x40)
-
-def calculate_crc(data):
-    """Calculates the 16-bit CRC for SBF messages."""
-    crc = 0xFFFF
-    for byte in data:
-        crc ^= byte
-        for _ in range(8):
-            if crc & 1:
-                crc = (crc >> 1) ^ 0x8408  # CRC-16-CCITT
-            else:
-                crc >>= 1
-    return crc & 0xFFFF
-
+from modules.crc import calculate_crc
 
 def parse(binary_data):
 
@@ -74,6 +61,6 @@ def read_serial_data(port='/dev/ttyAMA0', baudrate=115200, timeout=1):
 
 if __name__ == "__main__":
     try:
-        read_serial_data('/dev/ttyAMA0', baudrate=115200, timeout=1)
+        read_serial_data('COM9', baudrate=115200, timeout=1)
     except KeyboardInterrupt:
         print("\nSerial reading stopped by user.")
