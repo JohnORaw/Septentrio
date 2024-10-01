@@ -1,10 +1,13 @@
+#!/usr/bin/env python
+
 import serial
 import struct
-import septentrio_constants
+from septentrio_constants import SBF_SYNC_PATTERN
 
 from modules.crc import calculate_crc
 
 def parse(binary_data):
+    # All data little endian
 
     # Check if the data starts with the sync pattern
     if binary_data[:2] != SBF_SYNC_PATTERN:
@@ -12,31 +15,27 @@ def parse(binary_data):
         return None
     print("Found a valid SBF_SYNC")
 
-    # Extract message length (16-bit unsigned integer)
-    message_length = struct.unpack_from('<H', binary_data, 2)[0]  # Little-endian
-    print(f"Message Length: {message_length} bytes")
+    crc = struct.unpack_from('<H', binary_data, 2)[0]  # Little-endian
+    print(f"2 byte CRC from packet: {crc}")
 
-    # Extract message ID (16-bit unsigned integer)
-    message_id = struct.unpack_from('<H', binary_data, 4)[0]
-    print(f"Message ID: {message_id}")
+    block_id = struct.unpack_from('<H', binary_data, 4)[0]  # Little-endian
+    block_id = block_id & 0xFFF
+    print(f"2 byte block ID: {block_id}")
 
-    # Extract time tag (32-bit unsigned integer)
-    time_tag = struct.unpack_from('<I', binary_data, 6)[0]
-    print(f"Time Tag: {time_tag}")
-
- # Extract payload
-    payload_start = 10
-    payload_end = payload_start + (message_length - 10)  # Subtract header length
-    payload = binary_data[payload_start:payload_end]
-    print(f"Payload (raw): {payload}")
-
-    # Validate CRC (16-bit at the end of the message)
-    crc_received = binary_data[-2:]
-    crc_received_int = int.from_bytes(crc_received, "big")
-    print("CRC", crc_received_int)
-    crc_calculated = calculate_crc(binary_data[:message_length - 2])
-    print(f"CRC Received: {crc_received}, CRC Calculated: {crc_calculated}")
-
+    block_length = struct.unpack_from('<H', binary_data, 6)[0]  # Little-endian
+    if block_length % 4 == 0:
+        print(f"2 byte block length: {block_length}")
+    else:
+        print("Bad block length, cannot process this block")
+        return None
+    
+    TOW = struct.unpack_from('<I', binary_data, 8)[0]  # Little-endian
+    print(f"4 byte TOW: {TOW}")
+    
+    WNc = struct.unpack_from('<H', binary_data, 12)[0]  # Little-endian
+    print(f"2 byte GPS week number: {WNc}")
+    
+       
 def read_serial_data(port='/dev/ttyAMA0', baudrate=115200, timeout=1):
     try:
         # Open the serial port with the specified parameters
@@ -49,9 +48,9 @@ def read_serial_data(port='/dev/ttyAMA0', baudrate=115200, timeout=1):
 
                 if binary_data:
                     # Display the received binary data
-                    print("Binary Data (raw):", binary_data)
+                    #print("Binary Data (raw):", binary_data)
                     print("Binary Data (hex):", binary_data.hex())  # Display in hex format
-                    print("Binary Data (bytes):", list(binary_data))  # Display as a list of byte values
+                    #print("Binary Data (bytes):", list(binary_data))  # Display as a list of byte values
                     parse(binary_data)
 
     except serial.SerialException as e:
